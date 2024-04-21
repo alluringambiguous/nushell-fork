@@ -25,6 +25,7 @@ use url::Url;
 pub enum BodyType {
     Json,
     Form,
+    Text,
     Unknown,
 }
 
@@ -198,6 +199,7 @@ pub fn send_request(
     let body_type = match content_type {
         Some(it) if it == "application/json" => BodyType::Json,
         Some(it) if it == "application/x-www-form-urlencoded" => BodyType::Form,
+        Some(it) if it == "text/plain" => BodyType::Text,
         _ => BodyType::Unknown,
     };
     match body {
@@ -210,6 +212,11 @@ pub fn send_request(
             let data = value_to_json_value(&body)?;
             send_cancellable_request(&request_url, Box::new(|| request.send_json(data)), ctrl_c)
         }
+        Value::String { val, .. } if body_type == BodyType::Text => {
+            let request= request.set("Content-Type", "text/plain");
+            send_cancellable_request(&request_url, Box::new(move || request.send_string(&val)), ctrl_c)        
+        }
+        
         Value::String { val, .. } => send_cancellable_request(
             &request_url,
             Box::new(move || request.send_string(&val)),
